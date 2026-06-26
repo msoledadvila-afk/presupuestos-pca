@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Presupuestos PCA™ · Talento Impulsa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&display=swap" rel="stylesheet">
+<!-- Firebase Compat CDN (NO modular SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<!-- SheetJS para export Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --dorado:#9A7B3D; --dorado-suave:#B8995A; --dorado-profundo:#75582A;
+    --cream:#EFE9DB; --piedra:#DDD8D4; --calido:#E3D7D2;
+    --card:#FFFFFF; --borde:#C8C0B5;
+    --texto:#1A1814; --texto-sec:#6E6859;
+    --ok:#0F6E56; --alerta:#9A3D3D;
+    --shadow:0 8px 20px rgba(26,24,20,.08);
+    --shadow-sm:0 2px 8px rgba(26,24,20,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Outfit',system-ui,sans-serif;background:var(--cream);color:var(--texto);line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+
+  /* ---------- Header ---------- */
+  .topbar{background:var(--card);border-bottom:1px solid var(--borde);position:sticky;top:0;z-index:20}
+  .topbar-inner{max-width:1180px;margin:0 auto;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .brand{display:flex;flex-direction:column;line-height:1.1}
+  .brand .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dorado);font-weight:600}
+  .brand h1{font-size:23px;font-weight:600;letter-spacing:-.01em}
+  .brand .sub{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:16px;color:var(--texto-sec)}
+  .nav{display:flex;gap:8px;flex-wrap:wrap}
+  .nav button{font-family:inherit;font-size:14px;font-weight:500;padding:9px 16px;border:1px solid var(--borde);background:transparent;color:var(--texto-sec);border-radius:10px;cursor:pointer;transition:.15s}
+  .nav button:hover{border-color:var(--dorado-suave);color:var(--texto)}
+  .nav button.active{background:var(--dorado);border-color:var(--dorado);color:#fff}
+  .back-hub{font-size:12.5px;color:var(--texto-sec);text-decoration:none;border:1px solid var(--borde);padding:8px 13px;border-radius:10px;display:inline-flex;align-items:center;gap:6px;transition:.15s}
+  .back-hub:hover{border-color:var(--dorado-suave);color:var(--texto)}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px}
+  .view{display:none}
+  .view.active{display:block}
+
+  /* ---------- Listado ---------- */
+  .list-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+  .list-head h2{font-size:20px;font-weight:600}
+  .list-head p{color:var(--texto-sec);font-size:13.5px;margin-top:2px}
+  .filters{display:flex;gap:8px;flex-wrap:wrap}
+  .filters select,.filters input{font-family:inherit;font-size:13.5px;padding:8px 12px;border:1px solid var(--borde);border-radius:9px;background:var(--card);color:var(--texto)}
+  .btn{font-family:inherit;font-weight:600;font-size:14px;padding:11px 20px;border:none;border-radius:12px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:7px}
+  .btn-primary{background:var(--dorado);color:#fff}
+  .btn-primary:hover{background:var(--dorado-profundo)}
+  .btn-ghost{background:transparent;border:1px solid var(--borde);color:var(--texto-sec)}
+  .btn-ghost:hover{border-color:var(--dorado-suave);color:var(--texto)}
+  .btn-sm{padding:7px 13px;font-size:12.5px;border-radius:9px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+  .pcard{background:var(--card);border:1px solid var(--borde);border-radius:12px;padding:18px;box-shadow:var(--shadow-sm);transition:.15s}
+  .pcard:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+  .pcard .num{font-size:12px;letter-spacing:.06em;color:var(--dorado);font-weight:600}
+  .pcard h3{font-size:16px;font-weight:600;margin:3px 0 2px}
+  .pcard .meta{font-size:12.5px;color:var(--texto-sec)}
+  .pcard .total{font-size:20px;font-weight:600;margin:12px 0 4px}
+  .pcard .total small{font-size:12px;color:var(--texto-sec);font-weight:400}
+  .pcard-actions{display:flex;gap:7px;margin-top:14px;flex-wrap:wrap}
+  .chip{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em}
+  .chip.borrador{background:var(--piedra);color:var(--texto-sec)}
+  .chip.enviado{background:#E8E0CF;color:var(--dorado-profundo)}
+  .chip.aprobado{background:#D7E8E0;color:var(--ok)}
+  .chip.rechazado{background:#EDD8D8;color:var(--alerta)}
+
+  .empty{text-align:center;padding:60px 20px;color:var(--texto-sec)}
+  .empty .big{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:26px;color:var(--texto);margin-bottom:6px}
+
+  /* ---------- Editor ---------- */
+  .editor-grid{display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start}
+  .panel{background:var(--card);border:1px solid var(--borde);border-radius:12px;padding:22px;box-shadow:var(--shadow-sm);margin-bottom:20px}
+  .panel h3{font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--dorado);font-weight:600;margin-bottom:16px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12.5px;font-weight:500;color:var(--texto-sec);margin-bottom:5px}
+  .field input,.field select,.field textarea{width:100%;font-family:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--borde);border-radius:9px;background:#fff;color:var(--texto)}
+  .field textarea{resize:vertical;min-height:64px}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--dorado-suave);outline-offset:-1px;border-color:var(--dorado-suave)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+  .cat-buttons{display:flex;flex-wrap:wrap;gap:8px}
+  .cat-buttons button{font-family:inherit;font-size:12.5px;padding:8px 12px;border:1px dashed var(--dorado-suave);background:#fff;color:var(--dorado-profundo);border-radius:9px;cursor:pointer;transition:.15s;text-align:left}
+  .cat-buttons button:hover{background:var(--cream);border-style:solid}
+  .cat-buttons button .p{display:block;font-size:11px;color:var(--texto-sec);font-weight:400}
+
+  table.items{width:100%;border-collapse:collapse;margin-top:4px}
+  table.items th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--texto-sec);text-align:left;padding:6px 8px;border-bottom:1px solid var(--borde);font-weight:600}
+  table.items td{padding:6px 8px;border-bottom:1px solid #EDE8DE;vertical-align:middle}
+  table.items input,table.items select{width:100%;font-family:inherit;font-size:13px;padding:7px 8px;border:1px solid var(--borde);border-radius:7px;background:#fff;color:var(--texto)}
+  table.items input.num{text-align:right}
+  td.tcant{width:74px} td.tprecio{width:130px} td.tmon{width:80px} td.tsub{width:120px;text-align:right;font-weight:600;font-size:13.5px} td.tdel{width:36px;text-align:center}
+  .del-row{background:transparent;border:none;color:var(--alerta);cursor:pointer;font-size:17px;line-height:1;padding:4px;border-radius:6px}
+  .del-row:hover{background:#EDD8D8}
+
+  /* ---------- Totales (sticky aside) ---------- */
+  .totals{position:sticky;top:96px}
+  .totals .line{display:flex;justify-content:space-between;font-size:14px;padding:7px 0;color:var(--texto-sec)}
+  .totals .line span:last-child{color:var(--texto);font-weight:500}
+  .totals .line.grand{border-top:1px solid var(--borde);margin-top:6px;padding-top:13px;font-size:19px}
+  .totals .line.grand span{color:var(--texto);font-weight:600}
+  .totals .line.deposit{color:var(--dorado-profundo)}
+  .totals .line.deposit span:last-child{color:var(--dorado-profundo);font-weight:600}
+  .totals .note{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:14px;color:var(--texto-sec);margin-top:10px;line-height:1.4}
+  .cotiz-box{display:flex;align-items:center;gap:8px;margin:14px 0;padding:10px 12px;background:var(--cream);border-radius:9px;font-size:13px}
+  .cotiz-box input{width:90px;font-family:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--borde);border-radius:7px;text-align:right}
+  .save-actions{display:flex;flex-direction:column;gap:9px;margin-top:18px}
+
+  /* ---------- Calculadora tarifa hora ---------- */
+  .calc-toggle{margin-bottom:20px}
+  .calc{background:var(--calido);border:1px solid var(--borde);border-radius:12px;padding:20px;margin-bottom:20px;display:none}
+  .calc.open{display:block}
+  .calc .result{font-size:15px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--dorado-suave)}
+  .calc .result b{font-size:22px;color:var(--dorado-profundo)}
+
+  /* ---------- Toast ---------- */
+  #toast-wrap{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:90;display:flex;flex-direction:column;gap:8px;align-items:center}
+  .toast{background:var(--texto);color:#fff;font-size:13.5px;padding:11px 18px;border-radius:10px;box-shadow:var(--shadow);opacity:0;transform:translateY(8px);transition:.25s;max-width:88vw}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .toast.ok{background:var(--ok)} .toast.err{background:var(--alerta)}
+
+  /* ---------- Print ---------- */
+  #print-area{display:none}
+  @media print{
+    body{background:#fff}
+    .topbar,.wrap{display:none !important}
+    #print-area{display:block;padding:0;color:#1A1814}
+    .pr-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #9A7B3D;padding-bottom:14px;margin-bottom:18px}
+    .pr-brand .eb{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#9A7B3D;font-weight:700}
+    .pr-brand h1{font-size:22px;font-weight:700}
+    .pr-brand .s{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;color:#6E6859}
+    .pr-meta{text-align:right;font-size:12px;color:#6E6859}
+    .pr-meta .n{font-size:14px;color:#9A7B3D;font-weight:700}
+    .pr-cli{font-size:13px;margin-bottom:16px;line-height:1.6}
+    .pr-cli b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#6E6859;margin-bottom:3px;font-weight:700}
+    table.pr-items{width:100%;border-collapse:collapse;margin-bottom:16px}
+    table.pr-items th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:8px 6px;border-bottom:1.5px solid #9A7B3D;color:#6E6859}
+    table.pr-items th.r,table.pr-items td.r{text-align:right}
+    table.pr-items td{font-size:12.5px;padding:8px 6px;border-bottom:1px solid #DDD8D4}
+    .pr-tot{margin-left:auto;width:280px;font-size:13px}
+    .pr-tot .l{display:flex;justify-content:space-between;padding:5px 0}
+    .pr-tot .g{border-top:1.5px solid #9A7B3D;margin-top:4px;padding-top:9px;font-size:17px;font-weight:700}
+    .pr-tot .d{color:#75582A;font-weight:700}
+    .pr-notes{margin-top:20px;font-size:12px;color:#6E6859;border-top:1px solid #DDD8D4;padding-top:12px;line-height:1.6}
+    .pr-foot{margin-top:26px;font-family:'Cormorant Garamond',serif;font-style:italic;font-size:13px;color:#9A7B3D;text-align:center}
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:860px){
+    .editor-grid{grid-template-columns:1fr}
+    .totals{position:static}
+    .topbar-inner{padding:14px 16px}
+    .wrap{padding:20px 16px 70px}
+    td.tprecio{width:auto}
+  }
+  @media (max-width:520px){
+    .row2,.row3{grid-template-columns:1fr}
+    .brand h1{font-size:20px}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="eyebrow">Talento Impulsa</span>
+      <h1>Presupuestos PCA™</h1>
+      <span class="sub">Armado de presupuestos para clientes</span>
+    </div>
+    <div class="nav">
+      <button data-action="view" data-view="list" class="active" id="nav-list">Presupuestos</button>
+      <button data-action="new">+ Nuevo</button>
+      <a class="back-hub" href="https://msoledadvila-afk.github.io/hub-pca/">↗ Hub PCA™</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- ============ LISTADO ============ -->
+  <section class="view active" id="view-list">
+    <div class="list-head">
+      <div>
+        <h2>Tus presupuestos</h2>
+        <p id="list-count">Cargando…</p>
+      </div>
+      <div class="filters">
+        <input type="search" id="f-text" placeholder="Buscar cliente o N°…">
+        <select id="f-estado">
+          <option value="">Todos los estados</option>
+          <option value="borrador">Borrador</option>
+          <option value="enviado">Enviado</option>
+          <option value="aprobado">Aprobado</option>
+          <option value="rechazado">Rechazado</option>
+        </select>
+        <button class="btn btn-primary btn-sm" data-action="new">+ Nuevo presupuesto</button>
+      </div>
+    </div>
+    <div class="grid" id="list-grid"></div>
+  </section>
+
+  <!-- ============ EDITOR ============ -->
+  <section class="view" id="view-editor">
+    <div class="list-head">
+      <div>
+        <h2 id="ed-title">Nuevo presupuesto</h2>
+        <p id="ed-num"></p>
+      </div>
+      <button class="btn btn-ghost btn-sm" data-action="view" data-view="list">← Volver al listado</button>
+    </div>
+
+    <div class="calc-toggle">
+      <button class="btn btn-ghost btn-sm" data-action="toggle-calc">🧮 Calculadora de tarifa hora</button>
+    </div>
+    <form class="calc" id="calc-box" autocomplete="off">
+      <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--dorado);font-weight:600;margin-bottom:14px">Tu hora rentable</h3>
+      <div class="row3">
+        <div class="field"><label>Gastos mensuales (ARS)</label><input type="number" id="c-gastos" value="130000" min="0"></div>
+        <div class="field"><label>Ganancia deseada (ARS)</label><input type="number" id="c-ganancia" value="800000" min="0"></div>
+        <div class="field"><label>Horas facturables / mes</label><input type="number" id="c-horas" value="100" min="1"></div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">Calcular</button>
+      <div class="result" id="calc-result" style="display:none"></div>
+    </form>
+
+    <div class="editor-grid">
+      <div>
+        <div class="panel">
+          <h3>Cliente</h3>
+          <div class="field">
+            <label>Elegir de tus clientes</label>
+            <select id="ed-cliente-sel"><option value="">— Cargar manualmente —</option></select>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Nombre / Contacto</label><input id="ed-cli-nombre" placeholder="Nombre del cliente"></div>
+            <div class="field"><label>Empresa</label><input id="ed-cli-empresa" placeholder="Empresa"></div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>Email</label><input id="ed-cli-email" placeholder="email@cliente.com"></div>
+            <div class="field"><label>Teléfono</label><input id="ed-cli-phone" placeholder="+54…"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Línea de servicio</h3>
+          <div class="field">
+            <select id="ed-linea">
+              <option value="desarrollo">Desarrollo / Vibe Coding</option>
+              <option value="consultoria">Consultoría PCA™</option>
+              <option value="community">Community & Contenido</option>
+            </select>
+          </div>
+          <label style="display:block;font-size:12.5px;font-weight:500;color:var(--texto-sec);margin-bottom:8px">Agregar del catálogo (precio editable después)</label>
+          <div class="cat-buttons" id="ed-catalogo"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Ítems del presupuesto</h3>
+          <table class="items">
+            <thead><tr>
+              <th>Concepto</th><th style="text-align:right">Cant.</th><th style="text-align:right">Precio unit.</th><th>Moneda</th><th style="text-align:right">Subtotal</th><th></th>
+            </tr></thead>
+            <tbody id="ed-items"></tbody>
+          </table>
+          <button class="btn btn-ghost btn-sm" data-action="add-libre" style="margin-top:12px">+ Ítem libre</button>
+        </div>
+      </div>
+
+      <!-- aside totales -->
+      <aside>
+        <div class="panel totals">
+          <h3>Resumen</h3>
+          <div class="cotiz-box">
+            <span>Cotización USD →</span>
+            <span>$</span><input type="number" id="ed-cotiz" value="1400" min="1">
+            <span>ARS</span>
+          </div>
+          <div class="line"><span>Subtotal ARS</span><span id="t-ars">$0</span></div>
+          <div class="line"><span>Subtotal USD</span><span id="t-usd">US$0</span></div>
+          <div class="line"><span>USD en pesos</span><span id="t-usdars">$0</span></div>
+          <div class="field" style="margin:10px 0 0">
+            <label>Descuento (%)</label>
+            <input type="number" id="ed-desc" value="0" min="0" max="100">
+          </div>
+          <div class="line grand"><span>Total</span><span id="t-total">$0</span></div>
+          <div class="field" style="margin:12px 0 0">
+            <label>Depósito para iniciar (%)</label>
+            <input type="number" id="ed-deposito" value="50" min="0" max="100">
+          </div>
+          <div class="line deposit"><span>Depósito</span><span id="t-deposito">$0</span></div>
+
+          <div class="row2" style="margin-top:14px">
+            <div class="field"><label>Validez (días)</label><input type="number" id="ed-validez" value="15" min="1"></div>
+            <div class="field"><label>Estado</label>
+              <select id="ed-estado">
+                <option value="borrador">Borrador</option>
+                <option value="enviado">Enviado</option>
+                <option value="aprobado">Aprobado</option>
+                <option value="rechazado">Rechazado</option>
+              </select>
+            </div>
+          </div>
+          <div class="field"><label>Notas / condiciones</label><textarea id="ed-notas" placeholder="Ej: 50% para iniciar, saldo contra entrega. Precios sujetos a actualización por inflación."></textarea></div>
+
+          <div class="save-actions">
+            <button class="btn btn-primary" data-action="save">Guardar presupuesto</button>
+            <button class="btn btn-ghost btn-sm" data-action="print">🖨 Imprimir / PDF</button>
+            <button class="btn btn-ghost btn-sm" data-action="excel">⬇ Exportar Excel</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<div id="print-area"></div>
+<div id="toast-wrap"></div>
+
+<script>
+/* ============================================================
+   CONFIG FIREBASE
+   ⚠️ Pegá acá EXACTAMENTE el mismo objeto firebaseConfig que
+   ya usás en hub-pca.html (proyecto talento-impulsa). El apiKey
+   de Firebase no es secreto: vive en el cliente. La seguridad
+   real está en las Reglas de Firestore + dominios autorizados.
+   ============================================================ */
+var firebaseConfig = {
+  apiKey: "PEGAR_TU_API_KEY",
+  authDomain: "talento-impulsa.firebaseapp.com",
+  projectId: "talento-impulsa",
+  storageBucket: "PEGAR_TU_STORAGE_BUCKET",
+  messagingSenderId: "PEGAR_TU_SENDER_ID",
+  appId: "PEGAR_TU_APP_ID"
+};
+
+var APP_ID = 'talento-impulsa-default';
+var db, auth, unsubscribePresup = null;
+var clientes = [];
+var presupuestos = [];
+var current = null;          // presupuesto en edición
+var firebaseReady = false;
+
+/* ---- helpers de path / formato ---- */
+function dataCol(name){
+  return db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection(name);
+}
+function esc(s){
+  if(s===null||s===undefined) return '';
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+var fmtARS = new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0});
+var fmtUSD = new Intl.NumberFormat('es-AR',{style:'currency',currency:'USD',maximumFractionDigits:0});
+function ars(n){ return fmtARS.format(isFinite(n)?n:0); }
+function usd(n){ return fmtUSD.format(isFinite(n)?n:0); }
+
+function showToast(msg, type){
+  var w = document.getElementById('toast-wrap');
+  var t = document.createElement('div');
+  t.className = 'toast ' + (type||'');
+  t.textContent = msg;
+  w.appendChild(t);
+  requestAnimationFrame(function(){ t.classList.add('show'); });
+  setTimeout(function(){
+    t.classList.remove('show');
+    setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 300);
+  }, 2800);
+}
+
+/* ---- catálogo precargado (precios orientativos, editables al armar) ---- */
+var CATALOGO = {
+  desarrollo: [
+    {concepto:'Hora de Vibe Coding', precio:18000},
+    {concepto:'Landing single-file', precio:320000},
+    {concepto:'Sitio institucional', precio:450000},
+    {concepto:'Herramienta web a medida (single-file + Firebase)', precio:1200000},
+    {concepto:'Dashboard / panel a medida', precio:1800000},
+    {concepto:'Setup Firebase + deploy', precio:150000},
+    {concepto:'Automatización puntual', precio:250000},
+    {concepto:'Mantenimiento mensual', precio:80000},
+    {concepto:'Capacitación / onboarding', precio:120000}
+  ],
+  consultoria: [
+    {concepto:'Auditoría PCA™', precio:250000},
+    {concepto:'Seguimiento PCA™', precio:150000},
+    {concepto:'Taller de prompts C.R.E.F.', precio:300000},
+    {concepto:'Diseño de estructura / delegación', precio:400000},
+    {concepto:'Pack de implementación PCA™', precio:600000}
+  ],
+  community: [
+    {concepto:'Gestión mensual básica (2 redes, 12-15 piezas)', precio:220000},
+    {concepto:'Gestión full (estrategia + reels + métricas)', precio:550000},
+    {concepto:'Pack 12 piezas Canva', precio:180000},
+    {concepto:'Pack 20 piezas Canva', precio:280000},
+    {concepto:'Reel editado (c/u)', precio:35000},
+    {concepto:'Calendario editorial', precio:90000},
+    {concepto:'Hora de diseño', precio:12000}
+  ]
+};
+var LINEA_LABEL = {desarrollo:'Desarrollo / Vibe Coding', consultoria:'Consultoría PCA™', community:'Community & Contenido'};
+
+/* ============================================================
+   FIREBASE INIT
+   ============================================================ */
+function initFirebase(){
+  try{
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    auth = firebase.auth();
+    auth.signInAnonymously().then(function(){
+      firebaseReady = true;
+      cargarClientes();
+      escucharPresupuestos();
+    }).catch(function(err){
+      console.error(err);
+      showToast('No se pudo autenticar con Firebase. Revisá la config.', 'err');
+    });
+  }catch(err){
+    console.error(err);
+    showToast('Error al iniciar Firebase. ¿Pegaste el firebaseConfig?', 'err');
+    document.getElementById('list-count').textContent = 'Sin conexión a Firebase — completá firebaseConfig.';
+  }
+}
+
+function cargarClientes(){
+  dataCol('clientes').get().then(function(snap){
+    clientes = [];
+    snap.forEach(function(d){ var o=d.data(); o.id=d.id; clientes.push(o); });
+    clientes.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+    poblarSelectClientes();
+  }).catch(function(err){
+    console.error(err); showToast('No se pudieron cargar los clientes.', 'err');
+  });
+}
+
+function escucharPresupuestos(){
+  if(unsubscribePresup) unsubscribePresup();
+  unsubscribePresup = dataCol('presupuestos_pca').onSnapshot(function(snap){
+    presupuestos = [];
+    snap.forEach(function(d){ var o=d.data(); o.id=d.id; presupuestos.push(o); });
+    presupuestos.sort(function(a,b){ return (b.numero||'').localeCompare(a.numero||''); });
+    renderList();
+  }, function(err){
+    console.error(err); showToast('No se pudo leer presupuestos.', 'err');
+  });
+}
+
+/* ============================================================
+   LISTADO
+   ============================================================ */
+function poblarSelectClientes(){
+  var sel = document.getElementById('ed-cliente-sel');
+  sel.innerHTML = '<option value="">— Cargar manualmente —</option>';
+  clientes.forEach(function(c){
+    var op = document.createElement('option');
+    op.value = c.id;
+    op.textContent = c.name + (c.company ? ' · ' + c.company : '');
+    sel.appendChild(op);
+  });
+}
+
+function presupuestosFiltrados(){
+  var txt = (document.getElementById('f-text').value||'').toLowerCase().trim();
+  var est = document.getElementById('f-estado').value;
+  return presupuestos.filter(function(p){
+    if(est && p.estado!==est) return false;
+    if(txt){
+      var hay = (p.numero||'')+' '+(p.clienteNombre||'')+' '+(p.clienteEmpresa||'');
+      if(hay.toLowerCase().indexOf(txt)<0) return false;
+    }
+    return true;
+  });
+}
+
+function renderList(){
+  var grid = document.getElementById('list-grid');
+  var data = presupuestosFiltrados();
+  document.getElementById('list-count').textContent =
+    presupuestos.length + (presupuestos.length===1?' presupuesto':' presupuestos') +
+    (data.length!==presupuestos.length ? ' · '+data.length+' visibles' : '');
+
+  if(data.length===0){
+    grid.innerHTML = '<div class="empty" style="grid-column:1/-1">'+
+      '<div class="big">Todavía no hay presupuestos</div>'+
+      '<p>Creá el primero con “+ Nuevo presupuesto”.</p></div>';
+    return;
+  }
+  grid.innerHTML = '';
+  data.forEach(function(p){
+    var tot = calcTotales(p);
+    var card = document.createElement('div');
+    card.className = 'pcard';
+    card.innerHTML =
+      '<div class="num">'+esc(p.numero||'—')+'</div>'+
+      '<h3>'+esc(p.clienteNombre||'Sin cliente')+'</h3>'+
+      '<div class="meta">'+esc(p.clienteEmpresa||'')+' · '+esc(LINEA_LABEL[p.linea]||p.linea||'')+'</div>'+
+      '<div class="total">'+ars(tot.total)+' <small>· depósito '+ars(tot.deposito)+'</small></div>'+
+      '<div class="meta">'+esc(p.fecha||'')+' · validez '+esc(p.validezDias||15)+' días</div>'+
+      '<div class="pcard-actions">'+
+        '<span class="chip '+esc(p.estado||'borrador')+'">'+esc(p.estado||'borrador')+'</span>'+
+        '<button class="btn btn-ghost btn-sm" data-action="edit" data-id="'+esc(p.id)+'">Abrir</button>'+
+        '<button class="btn btn-ghost btn-sm" data-action="dup" data-id="'+esc(p.id)+'">Duplicar</button>'+
+        '<button class="btn btn-ghost btn-sm" data-action="del" data-id="'+esc(p.id)+'">Eliminar</button>'+
+      '</div>';
+    grid.appendChild(card);
+  });
+}
+
+/* ============================================================
+   CÁLCULOS
+   ============================================================ */
+function calcTotales(p){
+  var cot = Number(p.cotizacionUSD)||0;
+  var sArs=0, sUsd=0;
+  (p.items||[]).forEach(function(it){
+    var sub = (Number(it.cantidad)||0)*(Number(it.precioUnit)||0);
+    if(it.moneda==='USD') sUsd+=sub; else sArs+=sub;
+  });
+  var brutoArs = sArs + sUsd*cot;
+  var desc = Number(p.descuentoPct)||0;
+  var total = brutoArs*(1-desc/100);
+  var deposito = total*((Number(p.depositoPct)||0)/100);
+  return {sArs:sArs, sUsd:sUsd, usdEnArs:sUsd*cot, bruto:brutoArs, total:total, deposito:deposito};
+}
+
+/* ============================================================
+   EDITOR
+   ============================================================ */
+function nextNumero(){
+  var year = new Date().getFullYear();
+  var prefix = 'PRES-'+year+'-';
+  var max = 0;
+  presupuestos.forEach(function(p){
+    if(p.numero && p.numero.indexOf(prefix)===0){
+      var n = parseInt(p.numero.slice(prefix.length),10);
+      if(!isNaN(n) && n>max) max=n;
+    }
+  });
+  return prefix + String(max+1).padStart(3,'0');
+}
+
+function nuevoPresupuesto(){
+  var hoy = new Date().toISOString().slice(0,10);
+  current = {
+    id:null, numero:nextNumero(), fecha:hoy, validezDias:15,
+    clienteNombre:'', clienteEmpresa:'', clienteEmail:'', clientePhone:'',
+    linea:'desarrollo', items:[], cotizacionUSD:1400,
+    descuentoPct:0, depositoPct:50, notas:'50% para iniciar, saldo contra entrega. Precios sujetos a actualización por inflación.',
+    estado:'borrador'
+  };
+  abrirEditor();
+}
+
+function abrirEditor(){
+  switchView('editor');
+  document.getElementById('ed-title').textContent = current.id ? 'Editar presupuesto' : 'Nuevo presupuesto';
+  document.getElementById('ed-num').textContent = current.numero + ' · ' + current.fecha;
+  document.getElementById('ed-cliente-sel').value = '';
+  document.getElementById('ed-cli-nombre').value = current.clienteNombre||'';
+  document.getElementById('ed-cli-empresa').value = current.clienteEmpresa||'';
+  document.getElementById('ed-cli-email').value = current.clienteEmail||'';
+  document.getElementById('ed-cli-phone').value = current.clientePhone||'';
+  document.getElementById('ed-linea').value = current.linea||'desarrollo';
+  document.getElementById('ed-cotiz').value = current.cotizacionUSD||1400;
+  document.getElementById('ed-desc').value = current.descuentoPct||0;
+  document.getElementById('ed-deposito').value = current.depositoPct||50;
+  document.getElementById('ed-validez').value = current.validezDias||15;
+  document.getElementById('ed-estado').value = current.estado||'borrador';
+  document.getElementById('ed-notas').value = current.notas||'';
+  document.getElementById('calc-box').classList.remove('open');
+  document.getElementById('calc-result').style.display='none';
+  renderCatalogo();
+  renderItems();
+  renderTotales();
+}
+
+function renderCatalogo(){
+  var cont = document.getElementById('ed-catalogo');
+  var linea = document.getElementById('ed-linea').value;
+  var items = CATALOGO[linea]||[];
+  cont.innerHTML = '';
+  items.forEach(function(it, idx){
+    var b = document.createElement('button');
+    b.type='button';
+    b.setAttribute('data-action','add-catalogo');
+    b.setAttribute('data-linea',linea);
+    b.setAttribute('data-idx',idx);
+    b.innerHTML = esc(it.concepto)+'<span class="p">'+ars(it.precio)+'</span>';
+    cont.appendChild(b);
+  });
+}
+
+function renderItems(){
+  var tb = document.getElementById('ed-items');
+  tb.innerHTML = '';
+  if(!current.items.length){
+    tb.innerHTML = '<tr><td colspan="6" style="color:var(--texto-sec);font-size:13px;padding:14px 8px">Agregá ítems desde el catálogo o con “+ Ítem libre”.</td></tr>';
+    return;
+  }
+  current.items.forEach(function(it, i){
+    var sub = (Number(it.cantidad)||0)*(Number(it.precioUnit)||0);
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input data-idx="'+i+'" data-field="concepto" value="'+esc(it.concepto)+'"></td>'+
+      '<td class="tcant"><input class="num" type="number" min="0" step="0.5" data-idx="'+i+'" data-field="cantidad" value="'+esc(it.cantidad)+'"></td>'+
+      '<td class="tprecio"><input class="num" type="number" min="0" data-idx="'+i+'" data-field="precioUnit" value="'+esc(it.precioUnit)+'"></td>'+
+      '<td class="tmon"><select data-idx="'+i+'" data-field="moneda">'+
+        '<option value="ARS"'+(it.moneda!=='USD'?' selected':'')+'>ARS</option>'+
+        '<option value="USD"'+(it.moneda==='USD'?' selected':'')+'>USD</option>'+
+      '</select></td>'+
+      '<td class="tsub">'+(it.moneda==='USD'?usd(sub):ars(sub))+'</td>'+
+      '<td class="tdel"><button class="del-row" data-action="remove-item" data-idx="'+i+'" title="Quitar">×</button></td>';
+    tb.appendChild(tr);
+  });
+}
+
+function renderTotales(){
+  syncCurrentFromInputs();
+  var t = calcTotales(current);
+  document.getElementById('t-ars').textContent = ars(t.sArs);
+  document.getElementById('t-usd').textContent = usd(t.sUsd);
+  document.getElementById('t-usdars').textContent = ars(t.usdEnArs);
+  document.getElementById('t-total').textContent = ars(t.total);
+  document.getElementById('t-deposito').textContent = ars(t.deposito);
+}
+
+function syncCurrentFromInputs(){
+  if(!current) return;
+  current.clienteNombre = document.getElementById('ed-cli-nombre').value.trim();
+  current.clienteEmpresa = document.getElementById('ed-cli-empresa').value.trim();
+  current.clienteEmail = document.getElementById('ed-cli-email').value.trim();
+  current.clientePhone = document.getElementById('ed-cli-phone').value.trim();
+  current.linea = document.getElementById('ed-linea').value;
+  current.cotizacionUSD = Number(document.getElementById('ed-cotiz').value)||0;
+  current.descuentoPct = Number(document.getElementById('ed-desc').value)||0;
+  current.depositoPct = Number(document.getElementById('ed-deposito').value)||0;
+  current.validezDias = Number(document.getElementById('ed-validez').value)||15;
+  current.estado = document.getElementById('ed-estado').value;
+  current.notas = document.getElementById('ed-notas').value;
+}
+
+/* ---- guardar ---- */
+function guardar(){
+  syncCurrentFromInputs();
+  if(!firebaseReady){ showToast('Sin conexión a Firebase. Completá firebaseConfig.', 'err'); return; }
+  if(!current.clienteNombre){ showToast('Poné al menos el nombre del cliente.', 'err'); return; }
+  if(!current.items.length){ showToast('Agregá al menos un ítem.', 'err'); return; }
+
+  var payload = {
+    numero:current.numero, fecha:current.fecha, validezDias:current.validezDias,
+    clienteNombre:current.clienteNombre, clienteEmpresa:current.clienteEmpresa,
+    clienteEmail:current.clienteEmail, clientePhone:current.clientePhone,
+    linea:current.linea,
+    items:current.items.map(function(it){
+      return {concepto:it.concepto, cantidad:Number(it.cantidad)||0, precioUnit:Number(it.precioUnit)||0, moneda:it.moneda==='USD'?'USD':'ARS'};
+    }),
+    cotizacionUSD:Number(current.cotizacionUSD)||0,
+    descuentoPct:Number(current.descuentoPct)||0,
+    depositoPct:Number(current.depositoPct)||0,
+    notas:current.notas, estado:current.estado,
+    order: presupuestos.length,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  try{
+    var op;
+    if(current.id){
+      op = dataCol('presupuestos_pca').doc(current.id).set(payload, {merge:true});
+    }else{
+      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      op = dataCol('presupuestos_pca').add(payload).then(function(ref){ current.id = ref.id; });
+    }
+    op.then(function(){
+      showToast('Presupuesto '+current.numero+' guardado.', 'ok');
+      switchView('list');
+    }).catch(function(err){
+      console.error(err); showToast('No se pudo guardar. '+(err.message||''), 'err');
+    });
+  }catch(err){
+    console.error(err); showToast('Error inesperado al guardar.', 'err');
+  }
+}
+
+function eliminar(id){
+  if(!confirm('¿Eliminar este presupuesto? No se puede deshacer.')) return;
+  try{
+    dataCol('presupuestos_pca').doc(id).delete().then(function(){
+      showToast('Presupuesto eliminado.', 'ok');
+    }).catch(function(err){
+      console.error(err); showToast('No se pudo eliminar.', 'err');
+    });
+  }catch(err){ console.error(err); showToast('Error al eliminar.', 'err'); }
+}
+
+function editar(id){
+  var p = presupuestos.find(function(x){ return x.id===id; });
+  if(!p){ showToast('No se encontró el presupuesto.', 'err'); return; }
+  current = JSON.parse(JSON.stringify(p));
+  current.items = current.items||[];
+  abrirEditor();
+}
+
+function duplicar(id){
+  var p = presupuestos.find(function(x){ return x.id===id; });
+  if(!p){ showToast('No se encontró el presupuesto.', 'err'); return; }
+  current = JSON.parse(JSON.stringify(p));
+  current.id = null;
+  current.numero = nextNumero();
+  current.fecha = new Date().toISOString().slice(0,10);
+  current.estado = 'borrador';
+  current.items = current.items||[];
+  abrirEditor();
+  showToast('Copia creada como '+current.numero+'.', 'ok');
+}
+
+/* ---- calculadora tarifa hora ---- */
+function calcularTarifa(e){
+  e.preventDefault();
+  try{
+    var g = Number(document.getElementById('c-gastos').value)||0;
+    var gan = Number(document.getElementById('c-ganancia').value)||0;
+    var h = Number(document.getElementById('c-horas').value)||0;
+    if(h<=0){ showToast('Las horas deben ser mayores a 0.', 'err'); return; }
+    var tarifa = (g+gan)/h;
+    var res = document.getElementById('calc-result');
+    res.style.display='block';
+    res.innerHTML = 'Tu hora rentable mínima: <b>'+ars(tarifa)+'</b><br>'+
+      '<span style="font-size:12.5px;color:var(--texto-sec)">= ('+ars(g)+' gastos + '+ars(gan)+' ganancia) ÷ '+h+' hs facturables. '+
+      'Redondeá hacia arriba y sumá margen por imprevistos.</span>';
+  }catch(err){
+    console.error(err); showToast('No se pudo calcular.', 'err');
+  }
+}
+
+/* ============================================================
+   EXPORT: PRINT / PDF
+   ============================================================ */
+function construirPrint(){
+  syncCurrentFromInputs();
+  var t = calcTotales(current);
+  var filas = current.items.map(function(it){
+    var sub = (Number(it.cantidad)||0)*(Number(it.precioUnit)||0);
+    var pu = it.moneda==='USD'?usd(it.precioUnit):ars(it.precioUnit);
+    var ss = it.moneda==='USD'?usd(sub):ars(sub);
+    return '<tr><td>'+esc(it.concepto)+'</td><td class="r">'+esc(it.cantidad)+'</td>'+
+           '<td class="r">'+pu+'</td><td class="r">'+esc(it.moneda||'ARS')+'</td><td class="r">'+ss+'</td></tr>';
+  }).join('');
+
+  var html =
+    '<div class="pr-head">'+
+      '<div class="pr-brand"><div class="eb">Talento Impulsa · PCA™</div>'+
+        '<h1>Presupuesto</h1><div class="s">Productividad Consciente Aumentada</div></div>'+
+      '<div class="pr-meta"><div class="n">'+esc(current.numero)+'</div>'+
+        'Fecha: '+esc(current.fecha)+'<br>Validez: '+esc(current.validezDias)+' días</div>'+
+    '</div>'+
+    '<div class="pr-cli"><b>Cliente</b>'+esc(current.clienteNombre)+
+      (current.clienteEmpresa?' — '+esc(current.clienteEmpresa):'')+'<br>'+
+      esc(current.clienteEmail)+(current.clientePhone?' · '+esc(current.clientePhone):'')+'<br>'+
+      '<span style="color:#9A7B3D">Línea: '+esc(LINEA_LABEL[current.linea]||current.linea)+'</span></div>'+
+    '<table class="pr-items"><thead><tr><th>Concepto</th><th class="r">Cant.</th>'+
+      '<th class="r">Precio unit.</th><th class="r">Mon.</th><th class="r">Subtotal</th></tr></thead>'+
+      '<tbody>'+filas+'</tbody></table>'+
+    '<div class="pr-tot">'+
+      (t.sArs>0?'<div class="l"><span>Subtotal ARS</span><span>'+ars(t.sArs)+'</span></div>':'')+
+      (t.sUsd>0?'<div class="l"><span>Subtotal USD</span><span>'+usd(t.sUsd)+'</span></div>':'')+
+      (t.sUsd>0?'<div class="l"><span>USD a $'+esc(current.cotizacionUSD)+'</span><span>'+ars(t.usdEnArs)+'</span></div>':'')+
+      (Number(current.descuentoPct)>0?'<div class="l"><span>Descuento '+esc(current.descuentoPct)+'%</span><span>-'+ars(t.bruto-t.total)+'</span></div>':'')+
+      '<div class="l g"><span>Total</span><span>'+ars(t.total)+'</span></div>'+
+      '<div class="l d"><span>Depósito '+esc(current.depositoPct)+'% para iniciar</span><span>'+ars(t.deposito)+'</span></div>'+
+    '</div>'+
+    (current.notas?'<div class="pr-notes"><b>Condiciones:</b> '+esc(current.notas)+'</div>':'')+
+    '<div class="pr-foot">Talento Impulsa Consulting · No enseñamos herramientas. Diseñamos estructuras.</div>';
+
+  document.getElementById('print-area').innerHTML = html;
+}
+
+function imprimir(){
+  if(!current.items.length){ showToast('Agregá ítems antes de imprimir.', 'err'); return; }
+  construirPrint();
+  window.print();
+}
+
+/* ============================================================
+   EXPORT: EXCEL (SheetJS)
+   ============================================================ */
+function exportarExcel(){
+  syncCurrentFromInputs();
+  if(!current.items.length){ showToast('Agregá ítems antes de exportar.', 'err'); return; }
+  if(typeof XLSX==='undefined'){ showToast('No cargó la librería de Excel.', 'err'); return; }
+  try{
+    var t = calcTotales(current);
+    var aoa = [
+      ['Talento Impulsa · Presupuesto PCA™'],
+      ['Número', current.numero],
+      ['Fecha', current.fecha],
+      ['Validez (días)', current.validezDias],
+      ['Cliente', current.clienteNombre],
+      ['Empresa', current.clienteEmpresa],
+      ['Email', current.clienteEmail],
+      ['Teléfono', current.clientePhone],
+      ['Línea', LINEA_LABEL[current.linea]||current.linea],
+      [],
+      ['Concepto','Cantidad','Precio unit.','Moneda','Subtotal']
+    ];
+    current.items.forEach(function(it){
+      var sub = (Number(it.cantidad)||0)*(Number(it.precioUnit)||0);
+      aoa.push([it.concepto, Number(it.cantidad)||0, Number(it.precioUnit)||0, it.moneda||'ARS', sub]);
+    });
+    aoa.push([]);
+    aoa.push(['Subtotal ARS','','','', t.sArs]);
+    aoa.push(['Subtotal USD','','','', t.sUsd]);
+    aoa.push(['Cotización USD','','','', Number(current.cotizacionUSD)||0]);
+    aoa.push(['Descuento %','','','', Number(current.descuentoPct)||0]);
+    aoa.push(['TOTAL (ARS)','','','', t.total]);
+    aoa.push(['Depósito '+(Number(current.depositoPct)||0)+'%','','','', t.deposito]);
+    aoa.push([]);
+    aoa.push(['Condiciones', current.notas||'']);
+
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:42},{wch:12},{wch:14},{wch:10},{wch:16}];
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Presupuesto');
+    XLSX.writeFile(wb, 'Presupuesto_'+current.numero+'.xlsx');
+    showToast('Excel exportado.', 'ok');
+  }catch(err){
+    console.error(err); showToast('No se pudo exportar el Excel.', 'err');
+  }
+}
+
+/* ============================================================
+   NAVEGACIÓN
+   ============================================================ */
+function switchView(v){
+  document.getElementById('view-list').classList.toggle('active', v==='list');
+  document.getElementById('view-editor').classList.toggle('active', v==='editor');
+  document.getElementById('nav-list').classList.toggle('active', v==='list');
+  window.scrollTo(0,0);
+}
+
+/* ============================================================
+   EVENT DELEGATION (un listener por tipo, sin onclick inline)
+   ============================================================ */
+document.addEventListener('click', function(e){
+  var el = e.target.closest('[data-action]');
+  if(!el) return;
+  var a = el.getAttribute('data-action');
+
+  if(a==='view'){ switchView(el.getAttribute('data-view')); }
+  else if(a==='new'){ nuevoPresupuesto(); }
+  else if(a==='edit'){ editar(el.getAttribute('data-id')); }
+  else if(a==='dup'){ duplicar(el.getAttribute('data-id')); }
+  else if(a==='del'){ eliminar(el.getAttribute('data-id')); }
+  else if(a==='save'){ guardar(); }
+  else if(a==='print'){ imprimir(); }
+  else if(a==='excel'){ exportarExcel(); }
+  else if(a==='toggle-calc'){ document.getElementById('calc-box').classList.toggle('open'); }
+  else if(a==='add-libre'){
+    current.items.push({concepto:'', cantidad:1, precioUnit:0, moneda:'ARS'});
+    renderItems(); renderTotales();
+  }
+  else if(a==='add-catalogo'){
+    var linea = el.getAttribute('data-linea');
+    var idx = parseInt(el.getAttribute('data-idx'),10);
+    var base = (CATALOGO[linea]||[])[idx];
+    if(base){
+      current.items.push({concepto:base.concepto, cantidad:1, precioUnit:base.precio, moneda:'ARS'});
+      renderItems(); renderTotales();
+      showToast('“'+base.concepto+'” agregado.', 'ok');
+    }
+  }
+  else if(a==='remove-item'){
+    var ri = parseInt(el.getAttribute('data-idx'),10);
+    current.items.splice(ri,1);
+    renderItems(); renderTotales();
+  }
+});
+
+/* inputs de la tabla de ítems (delegación) */
+document.addEventListener('input', function(e){
+  var el = e.target;
+  if(el.hasAttribute('data-idx') && el.hasAttribute('data-field') && current){
+    var i = parseInt(el.getAttribute('data-idx'),10);
+    var f = el.getAttribute('data-field');
+    if(current.items[i]){
+      current.items[i][f] = (f==='cantidad'||f==='precioUnit') ? (Number(el.value)||0) : el.value;
+      // actualizar subtotal de la fila sin re-render (mantener foco)
+      var tr = el.closest('tr');
+      if(tr){
+        var it = current.items[i];
+        var sub = (Number(it.cantidad)||0)*(Number(it.precioUnit)||0);
+        var cell = tr.querySelector('.tsub');
+        if(cell) cell.textContent = it.moneda==='USD'?usd(sub):ars(sub);
+      }
+      renderTotales();
+    }
+  }
+  // recalcular totales al tocar cotización/descuento/depósito
+  if(['ed-cotiz','ed-desc','ed-deposito'].indexOf(el.id)>=0){ renderTotales(); }
+});
+
+/* selects (moneda por ítem, línea, cliente) */
+document.addEventListener('change', function(e){
+  var el = e.target;
+  if(el.id==='ed-linea'){ renderCatalogo(); }
+  else if(el.id==='f-text' || el.id==='f-estado'){ renderList(); }
+  else if(el.id==='ed-cliente-sel'){
+    var c = clientes.find(function(x){ return x.id===el.value; });
+    if(c){
+      document.getElementById('ed-cli-nombre').value = c.name||'';
+      document.getElementById('ed-cli-empresa').value = c.company||'';
+      document.getElementById('ed-cli-email').value = c.email||'';
+      document.getElementById('ed-cli-phone').value = c.phone||'';
+    }
+  }
+  else if(el.hasAttribute('data-idx') && el.getAttribute('data-field')==='moneda' && current){
+    var i = parseInt(el.getAttribute('data-idx'),10);
+    if(current.items[i]){ current.items[i].moneda = el.value; renderItems(); renderTotales(); }
+  }
+});
+
+/* búsqueda en vivo del listado */
+document.getElementById('f-text').addEventListener('input', renderList);
+
+/* form de la calculadora */
+document.getElementById('calc-box').addEventListener('submit', calcularTarifa);
+
+/* ============================================================
+   ARRANQUE
+   ============================================================ */
+initFirebase();
+</script>
+</body>
+</html>

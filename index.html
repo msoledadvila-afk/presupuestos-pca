@@ -38,6 +38,15 @@
   .nav button{font-family:inherit;font-size:14px;font-weight:500;padding:9px 16px;border:1px solid var(--borde);background:transparent;color:var(--texto-sec);border-radius:10px;cursor:pointer;transition:.15s}
   .nav button:hover{border-color:var(--dorado-suave);color:var(--texto)}
   .nav button.active{background:var(--dorado);border-color:var(--dorado);color:#fff}
+  /* ---------- Login (F1) ---------- */
+  #login-gate{position:fixed;inset:0;z-index:100;background:var(--cream);display:flex;align-items:center;justify-content:center;padding:16px}
+  #login-gate .login-card{background:var(--card);border-radius:16px;padding:36px 28px;width:min(380px,100%);box-shadow:var(--shadow);text-align:center}
+  #login-gate .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dorado);font-weight:600}
+  #login-gate h2{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:30px;margin:6px 0 20px}
+  #login-gate .login-err{display:none;background:#F6E3E3;color:var(--alerta);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:14px;text-align:left}
+  #login-gate button{width:100%;padding:12px 16px;border:none;border-radius:10px;background:var(--dorado);color:#fff;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer}
+  #login-gate button:disabled{opacity:.7;cursor:wait}
+  #login-gate .note{font-size:12px;color:var(--texto-sec);margin-top:14px}
   .back-hub{font-size:12.5px;color:var(--texto-sec);text-decoration:none;border:1px solid var(--borde);padding:8px 13px;border-radius:10px;display:inline-flex;align-items:center;gap:6px;transition:.15s}
   .back-hub:hover{border-color:var(--dorado-suave);color:var(--texto)}
 
@@ -170,6 +179,16 @@
 </head>
 <body>
 
+<div id="login-gate">
+  <form class="login-card" id="login-form">
+    <span class="eyebrow">Talento Impulsa</span>
+    <h2>Presupuestos PCA™</h2>
+    <div class="login-err" id="login-error"></div>
+    <button type="submit" id="btn-google-login" disabled>Verificando sesión…</button>
+    <div class="note">Acceso solo para las cuentas autorizadas de Talento Impulsa.</div>
+  </form>
+</div>
+
 <div class="topbar">
   <div class="topbar-inner">
     <div class="brand">
@@ -181,6 +200,7 @@
       <button data-action="view" data-view="list" class="active" id="nav-list">Presupuestos</button>
       <button data-action="new">+ Nuevo</button>
       <a class="back-hub" href="https://msoledadvila-afk.github.io/hub-pca/">↗ Hub PCA™</a>
+      <button data-action="logout" id="btn-logout" title="Cerrar sesión">Salir</button>
     </div>
   </div>
 </div>
@@ -417,13 +437,27 @@ function initFirebase(){
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
     auth = firebase.auth();
-    auth.signInAnonymously().then(function(){
-      firebaseReady = true;
-      cargarClientes();
-      escucharPresupuestos();
-    }).catch(function(err){
-      console.error(err);
-      showToast('No se pudo autenticar con Firebase. Revisá la config.', 'err');
+    auth.onAuthStateChanged(function(user){
+      if(user && !user.isAnonymous){
+        var email = (user.email||'').toLowerCase();
+        if(ALLOWED_EMAILS.indexOf(email) === -1){
+          auth.signOut();
+          loginError('La cuenta ' + email + ' no tiene acceso a Presupuestos PCA™.');
+          loginBusy(false);
+          return;
+        }
+        document.getElementById('login-gate').style.display = 'none';
+        document.getElementById('btn-logout').title = 'Cerrar sesión (' + email + ')';
+        if(!firebaseReady){
+          firebaseReady = true;
+          cargarClientes();
+          escucharPresupuestos();
+        }
+        return;
+      }
+      if(user && user.isAnonymous){ auth.signOut(); }
+      document.getElementById('login-gate').style.display = 'flex';
+      loginBusy(false);
     });
   }catch(err){
     console.error(err);
@@ -431,6 +465,32 @@ function initFirebase(){
     document.getElementById('list-count').textContent = 'Sin conexión a Firebase — completá firebaseConfig.';
   }
 }
+
+/* ============================================================
+   LOGIN GOOGLE (F1) — cuentas autorizadas
+   La seguridad real llega en F2 con las reglas de Firestore.
+   ============================================================ */
+var ALLOWED_EMAILS = ['msoledadvila@gmail.com', 'hola@talentoimpulsa.com.ar'];
+function loginError(msg){ var el=document.getElementById('login-error'); el.textContent=msg||''; el.style.display=msg?'block':'none'; }
+function loginBusy(busy, label){ var b=document.getElementById('btn-google-login'); b.disabled=!!busy; b.textContent=label||'Ingresar con Google'; }
+document.getElementById('login-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  loginError(''); loginBusy(true, 'Abriendo Google…');
+  try{
+    var provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({prompt:'select_account'});
+    auth.signInWithPopup(provider).catch(function(ex){
+      var map={'auth/popup-closed-by-user':'Cerraste la ventana de Google antes de terminar.','auth/popup-blocked':'El navegador bloqueó la ventana de Google. Permití ventanas emergentes para este sitio.','auth/unauthorized-domain':'Este dominio no está autorizado en Firebase Authentication.','auth/operation-not-allowed':'El ingreso con Google no está activado en Firebase Authentication.'};
+      loginError(map[ex.code] || ex.message); loginBusy(false);
+      showToast('No se pudo ingresar', 'err');
+    });
+  }catch(ex){ loginError(ex.message); loginBusy(false); showToast('No se pudo ingresar', 'err'); }
+});
+document.addEventListener('click', function(e){
+  var b = e.target.closest('[data-action="logout"]'); if(!b) return;
+  if(!confirm('¿Cerrar sesión?')) return;
+  auth.signOut().then(function(){ location.reload(); }, function(){ location.reload(); });
+});
 
 function cargarClientes(){
   dataCol('clientes').get().then(function(snap){

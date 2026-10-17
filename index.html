@@ -244,9 +244,9 @@
     <form class="calc" id="calc-box" autocomplete="off">
       <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--dorado);font-weight:600;margin-bottom:14px">Tu hora rentable</h3>
       <div class="row3">
-        <div class="field"><label>Gastos mensuales (ARS)</label><input type="number" id="c-gastos" value="130000" min="0"></div>
+        <div class="field"><label>Gastos mensuales (ARS)</label><input type="number" id="c-gastos" value="150000" min="0"></div>
         <div class="field"><label>Ganancia deseada (ARS)</label><input type="number" id="c-ganancia" value="800000" min="0"></div>
-        <div class="field"><label>Horas facturables / mes</label><input type="number" id="c-horas" value="100" min="1"></div>
+        <div class="field"><label>Horas facturables / mes</label><input type="number" id="c-horas" value="50" min="1"></div>
       </div>
       <button type="submit" class="btn btn-primary btn-sm">Calcular</button>
       <div class="result" id="calc-result" style="display:none"></div>
@@ -411,11 +411,14 @@ var CATALOGO = {
     {concepto:'Capacitación / onboarding', precio:120000}
   ],
   consultoria: [
-    {concepto:'Auditoría PCA™', precio:250000},
-    {concepto:'Seguimiento PCA™', precio:150000},
-    {concepto:'Taller de prompts C.R.E.F.', precio:300000},
-    {concepto:'Diseño de estructura / delegación', precio:400000},
-    {concepto:'Pack de implementación PCA™', precio:600000}
+    {concepto:'Pack Autonomía PCA™ (Nivel 01 · base)', precio:280000},
+    {concepto:'Mentoría Estratégica 1:1 (Nivel 01 · avanzada)', precio:450000},
+    {concepto:'Arquitectura de Equipos (hasta 10 personas)', precio:750000},
+    {concepto:'Acompañamiento Mensual PCA™ (por mes)', precio:90000},
+    {concepto:'Cohorte Nodo PCA (institución)', precio:600000},
+    {concepto:'Transformación Consciente (a medida)', precio:0},
+    {concepto:'Alianza para Consultoras (a convenir)', precio:0},
+    {concepto:'Hora de consultoría PCA™', precio:30000}
   ],
   community: [
     {concepto:'Gestión mensual básica (2 redes, 12-15 piezas)', precio:220000},
